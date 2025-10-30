@@ -1,10 +1,10 @@
 
 
-# %%
+# %%'
 
 import os
 
-# %%
+# %%'
 
 
 # --- Setup Paths ---
@@ -16,7 +16,7 @@ folder_path = r"F:\OneDrive - Uniklinik RWTH Aachen\DEXA\composition"
 file1_path = os.path.join(folder_path, "P092_Talbot_Datei.xlsx")
 file2_path = os.path.join(folder_path, "CT.xlsx")
 
-# %%
+# %%'
 
 
 # Use the 'sheet_name' parameter to load *only* the 'Data_query' sheet.
@@ -30,7 +30,7 @@ df_composition = pd.read_excel(file1_path,
 #     UserWarning: Data Validation extension is not supported and will be removed
 #   for idx, row in parser.parse():
 
-# %%
+# %%'
 
 
 # 'header=0' is also the default here.
@@ -38,8 +38,8 @@ df_ct = pd.read_excel(file2_path,
                       header=0)
     
 
-# %%
-# %%
+# %%'
+# %%'
 
 df_composition.shape
     # Out[17]: (271, 19)
@@ -93,8 +93,8 @@ Out[19]:
  'Unnamed: 17',
  'comment']
 
-# %%
-# %%
+# %%'
+# %%'
 
 df_ct
     # Out[20]: 
@@ -131,7 +131,7 @@ df_ct
 list( df_ct.columns )
     # Out[22]: ['animal_id', 'sex', 'fat body volume mm^3', 'body volume mm^3']
 
-# %%
+# %%'
 
 # .iloc[rows, columns]
 # : means 'all rows'
@@ -149,7 +149,7 @@ df_ct = df_ct.rename( columns={
                                 'body volume mm^3' : 'body_volume_ct' 
 })
 
-# %%
+# %%'
 
 # Drop all rows that have one or more NaN values
 df_ct = df_ct.dropna()
@@ -157,7 +157,7 @@ df_ct = df_ct.dropna()
 # Chain the prefix and suffix removals
 df_ct['animal_id'] = df_ct['animal_id'].str.removeprefix('LT-').str.removesuffix('x')
 
-# %%
+# %%'
 
 df_ct
     # Out[26]: 
@@ -187,7 +187,7 @@ df_ct
     # 26       073  female    4199.000000   136315.000000
     # 27       074  female      66.000000    52080.000000
 
-# %%
+# %%'
 
 # Strip all leading '0' characters from 'animal_id'
 df_ct['animal_id'] = df_ct['animal_id'].str.lstrip('0')
@@ -202,7 +202,7 @@ df_ct['animal_id'] = df_ct['animal_id'].str.lstrip('0')
     # 26        73  female    4199.000000   136315.000000
     # 27        74  female      66.000000    52080.000000
 
-# %%
+# %%'
 
 df_ct.to_pickle( r'F:\OneDrive - Uniklinik RWTH Aachen\DEXA\composition\df_ct.pkl' )
 
@@ -210,13 +210,75 @@ df_composition_2.to_pickle( r'F:\OneDrive - Uniklinik RWTH Aachen\DEXA\compositi
 
 df_composition_2 = pd.read_pickle( r'F:\OneDrive - Uniklinik RWTH Aachen\DEXA\composition\df_composition_2.pkl' )
 
+# %%' leakage_averages
 
-# %%
+df_composition_2['leakage'] = pd.to_numeric(
+    df_composition_2['leakage'].astype(str).str.replace(',', '.'),
+    errors='coerce'
+)
+        
+leakage_average = df_composition_2.groupby('animal_id')['leakage'].mean()
+
+type( leakage_average )
+    # Out[14]: pandas.core.series.Series
+
+
+# after aggregation, the number of rows shreinked to about 1/3 , as expected.
+leakage_average.shape
+    # Out[17]: (101,)
+
+df_composition_2.shape
+    # Out[18]: (271, 16)
+
+leakage_average[:4]
+    # Out[15]: 
+    # animal_id
+    # 1         NaN
+    # 2    0.120000
+    # 3         NaN
+    # 4   -0.336667
+    # Name: leakage, dtype: float64
+
+leakage_average[-4:]
+    # Out[19]: 
+    # animal_id
+    # KW-2   -0.213333
+    # KW-3   -0.280000
+    # KW-4   -0.046667
+    # KW-5   -0.063333
+    # Name: leakage, dtype: float64
+
+# Convert this from a Series into a DataFrame, naming the new column
+leakage_average_df = leakage_average.reset_index(name='leakage_average')
+
+leakage_average_df[:4]
+    # Out[23]: 
+    #   animal_id  leakage_average
+    # 0         1              NaN
+    # 1         2         0.120000
+    # 2         3              NaN
+    # 3         4        -0.336667
+
+# this coes from later stages of this file.
+    # this is because this part was a revision of the previous stages !
+df_composition_6 = pd.merge(
+                            df_composition_5, 
+                            leakage_average_df, 
+                            on='animal_id', 
+                            how='left'
+)
+
+df_composition_6.drop( columns=['leakage' , 'leakage_censored'] , inplace=True )
+
+df_composition_6.to_pickle( r'F:\OneDrive - Uniklinik RWTH Aachen\DEXA\composition\df_composition_6.pkl' )
+
+
+# %%'
 
 # Drop duplicates based on 'animal_id', keeping the first row
 df_composition_3 = df_composition_2.drop_duplicates(subset=['animal_id'], keep='first')
 
-# %%
+# %%'
 
 df_composition_3.shape
     # Out[33]: (101, 16)
@@ -241,11 +303,11 @@ df_composition_3[:4]
     # 6               NaN 10.700000               NaN       NaN          1.000000  
     # 9               NaN  7.700000               NaN -0.200000               NaN  
 
-# %%
+# %%'
 
 df_composition_3.to_pickle( r'F:\OneDrive - Uniklinik RWTH Aachen\DEXA\composition\df_composition_3.pkl' )
 
-# %%
+# %%'
 
 # 1. (Optional but recommended)
 # To make the merge efficient, create a smaller dataframe from df_ct
@@ -265,7 +327,7 @@ df_composition_4 = pd.merge(
                             how='left'
 )
 
-# %%
+# %%'
 
 df_composition_4.shape
     # Out[38]: (101, 18)
@@ -343,11 +405,11 @@ df_composition_4[-4:]
     # 100    1726.000000    34441.000000  
 
 
-# %%
+# %%'
 
 df_composition_4.to_pickle( r'F:\OneDrive - Uniklinik RWTH Aachen\DEXA\composition\df_composition_4.pkl' )
 
-# %% 
+# %%' 
 
 df_composition_4['fatbody'].dtype
     # Out[16]: dtype('float64')
@@ -392,7 +454,7 @@ Out[26]:
     # 43    131.9
     # 44      NaN
 
-# %%
+# %%'
 
 df_composition_4[['fatbody' , 'bw']][:10]
     # Out[13]: 
@@ -409,7 +471,7 @@ df_composition_4[['fatbody' , 'bw']][:10]
     # 9       NaN  86.300000
 
 
-# %%
+# %%'
 
 
 # 1. Define your master list of all columns that *should* be numbers
@@ -444,7 +506,7 @@ for col_name in numeric_cols_list:
 print("\n--- All Types After Conversion ---")
 print(df_composition_4.dtypes)
 
-# %%
+# %%'
 
     # --- Starting data type conversion ---
     #   > Column 'bcs' fixed.
@@ -478,13 +540,13 @@ print(df_composition_4.dtypes)
     # body_volume_ct      float64
     # dtype: object
 
-# %%
+# %%'
 
 df_composition_5 = df_composition_4.copy()
 
 df_composition_5.to_pickle( r'F:\OneDrive - Uniklinik RWTH Aachen\DEXA\composition\df_composition_5.pkl' )
 
-# %% ratio
+# %%' ratio
 
 # fwpd = fat weight percentage _ dissection
 df_composition_5['fwp_d'] =  ( df_composition_5['fatbody'] /  df_composition_5['bw'] ) * 100 
@@ -505,12 +567,12 @@ df_composition_5['wli'] =  df_composition_5['bw'] / ( df_composition_5['ncl'] **
 # owp : oocytes' weight %
 df_composition_5['owp'] =  ( df_composition_5['oocytes'] /  df_composition_5['bw'] ) * 100 
 
-# %%
+# %%'
 
 df_composition_5.to_pickle( r'F:\OneDrive - Uniklinik RWTH Aachen\DEXA\composition\df_composition_5.pkl' )
 
 
-# %%
+# %%'
 
 df_composition_5[['fatbody' , 'bw']][:10]
     # Out[12]: 
@@ -527,7 +589,7 @@ df_composition_5[['fatbody' , 'bw']][:10]
     # 9      NaN   86.3
 
 
-# %%
+# %%'
 
 df_composition_5[[ 'fwp_d' , 'fvp_ct' , 'bmi' , 'owp' ]][:4]
     # Out[17]: 
@@ -546,10 +608,10 @@ df_composition_5[[ 'fwp_d' , 'fvp_ct' , 'bmi' , 'owp' ]][-4:]
     # 99   3.652968  4.512067  0.719921  NaN
     # 100  5.789474  5.011469  0.733025  NaN
 
-# %%
+# %%'
 
 
-# %%
+# %%'
 
 df_composition_5['oocytes'][:4]
     # Out[15]: 
@@ -559,7 +621,183 @@ df_composition_5['oocytes'][:4]
     # 3     7.7
     # Name: oocytes, dtype: float64
 
+# %%'
+# %%'
+
+list ( df_composition_6.columns )
+    # Out[29]: 
+    # ['species',
+    #  'sex',
+    #  'animal_id',
+    #  'condition',
+    #  'day',
+    #  'repetition',
+    #  'date',
+    #  'bcs',
+    #  'bw',
+    #  'ncl',
+    #  'fatbody',
+    #  'fatbody_censored',
+    #  'oocytes',
+    #  'oocytes_censored',
+    #  'fat_volume_ct',
+    #  'body_volume_ct',
+    #  'fwp_d',
+    #  'fvp_ct',
+    #  'bmi',
+    #  'owp',
+    #  'wli',
+    #  'leakage_average']
+
+
+# %%'
+
+
+# List of the identifier and grouping columns you want to keep
+id_columns = [
+               'sex',
+               'animal_id',
+               'condition',
+               'date',
+              ]
+
+# List of the measurement columns you want to analyze
+readout_parameters = [
+                        'bcs',
+                        'fwp_d',
+                        'fvp_ct',
+                        'owp',
+                        'leakage_average',
+                        'bmi',
+                        'wli'  
+]
+
+# Create the new, focused DataFrame
+df_subset = df_composition_6[ id_columns + readout_parameters ]
+
+# %%'
+
+# Melt the DataFrame to convert it to a long format
+df_composition_6_tidy = pd.melt(
+                                df_subset,
+                                id_vars=id_columns,              # Columns to keep as they are (identifiers)
+                                value_vars=readout_parameters,   # Columns to "unpivot" into rows
+                                var_name='metric',               # Name of the new column for the measurement type
+                                value_name='value'               # Name of the new column for the measurement value
+)
+
+# %%'
+
+# 2025-10-27 __ 13:34
+df_composition_6_tidy.shape
+    # Out[37]: (707, 6)
+
+# %%'
+
+df_composition_6_tidy.to_pickle( r'F:\OneDrive - Uniklinik RWTH Aachen\DEXA\composition\df_composition_6_tidy.pkl' )
+
+# %%'
+# %%'
+
+list( df_composition_6_tidy.columns ) 
+    # Out[44]: ['sex', 'animal_id', 'condition', 'date', 'metric', 'value']
+
+# %%'
+
+# create a new column with the string-type of bcs.
+# This ensures Seaborn treats it as a distinct category (1, 2, 3...)
+# and not as a continuous number (which would create one giant violin).
+df_composition_6['bcs_str'] = df_composition_6['bcs'].astype(str)
+
+# %%'
+
+df_composition_6['bcs'].unique()
+Out[55]: array([ 1.,  5.,  4.,  3.,  2., nan])
+
+df_composition_6['bcs'].dtype
+    # Out[57]: dtype('float64')
+
+# the problem here : there is a : .0 : decimal after each category !
+df_composition_6['bcs_str'].unique()
+# Out[54]: array(['1.0', '5.0', '4.0', '3.0', '2.0', 'nan'], dtype=object)
+
+# %% Int64 : remove decimal !
+
+# 1. Go back to the ORIGINAL float 'bcs' column.
+#    Convert it to a nullable integer ('Int64' with a capital 'I').
+#    This turns 1.0 into 1 and NaN into <NA>.
+df_composition_6['bcs_Int64'] = df_composition_6['bcs'].astype('Int64')
+
+df_composition_6['bcs_Int64'].unique()
+    # Out[15]: 
+    # <IntegerArray>
+    # [1, 5, 4, 3, 2, <NA>]
+    # Length: 6, dtype: Int64
+
+# 2. Now, convert that integer column to a string.
+#    This turns 1 into '1' and <NA> into the string '<NA>'.
+df_composition_6['bcs_Int64_str'] = df_composition_6['bcs_Int64'].astype(str)
+
+df_composition_6['bcs_Int64_str'].unique()
+    # Out[17]: array(['1', '5', '4', '3', '2', '<NA>'], dtype=object)
+
+# 3. (Optional) Replace the '<NA>' string with 'nan' to match your old output.
+df_composition_6['bcs_Int64_str'] = df_composition_6['bcs_Int64_str'].replace('<NA>', 'nan')
+
+# --- Check your result ---
+df_composition_6['bcs_Int64_str'].unique()
+# Out[19]: array(['1', '5', '4', '3', '2', 'nan'], dtype=object)
+
+# %%'
+# %% order bcs
+
+
+bcs_Int64_str_order = [ '1', '2', '3', '4', '5', 'nan' ]
+df_composition_6['bcs_Int64_str'] = pd.Categorical(
+                                            df_composition_6['bcs_Int64_str'],
+                                            categories=bcs_Int64_str_order,
+                                            ordered=True
+)
+
+
+df_composition_6['bcs_Int64_str'].unique()
+    # Out[21]: 
+    # ['1', '5', '4', '3', '2', 'nan']
+    # Categories (6, object): ['1' < '2' < '3' < '4' < '5' < 'nan']
+
+# %%'
+
+df_composition_6.to_pickle( r'F:\OneDrive - Uniklinik RWTH Aachen\DEXA\composition\df_composition_6.pkl' )
+
+
+# %%'
+
+df_composition_6['leakage_average'].sort_values()[:4]
+    # Out[73]: 
+    # 64   -13.233333
+    # 23    -1.243333
+    # 7     -1.076667
+    # 34    -0.843333
+    # Name: leakage_average, dtype: float64
+
+# %%' oocyte_censored
+
+oocyte_censored = df_composition_6[[ 'animal_id' , 'bcs' , 'oocytes_censored']].dropna()
+
+oocyte_censored
+    # Out[15]: 
+    #    animal_id      bcs  oocytes_censored
+    # 30        31 1.000000          1.000000
+    # 46        47 2.000000          1.000000
+    # 53        54 2.000000          1.000000
+    # 56        57 5.000000          1.000000
+
+# %%'
 # %%
+
+
+# %%
+
 
 
 
