@@ -1,29 +1,6 @@
 
 # %%
 
-# Hey : this may even not be needed : you are not plotting 'bcs' here !
-
-# 'bcs' column has NaN values that get irrelevantly plotted on the y axis as a separate category.
-# hence, you should remnove them 1st :
-# note : you can not remove string 'nan' by the drop-na method !
-
-# Select rows where 'bcs_str' is NOT 'nan' and make a new dataframe
-mask_nan_string = df_composition_6['bcs_Int64_str'] != 'nan'
-df_plot_bcs = df_composition_6[ mask_nan_string ].copy()
-
-df_plot_bcs['bcs_Int64_str'].unique()
-    # Out[28]: 
-    # ['1', '5', '4', '3', '2']
-    # Categories (6, object): ['1' < '2' < '3' < '4' < '5' < 'nan']
-
-# Remove any categories that no longer have data
-# without doing this, seaborn still plots the 'nan' at the y-axis as an empty row !
-df_plot_bcs['bcs_Int64_str'] = df_plot_bcs['bcs_Int64_str'].cat.remove_unused_categories()
-
-df_plot_bcs['bcs_Int64_str'].unique()
-    # Out[33]: 
-    # ['1', '5', '4', '3', '2']
-    # Categories (5, object): ['1' < '2' < '3' < '4' < '5']
 
 # %%
 
@@ -75,7 +52,7 @@ for i, x_var in enumerate(x_variables):
 # %%  LOWESS
 
 sns.regplot(
-            data=plot_data, 
+            data=df_composition_6.copy(), 
             x='owp', 
             y='bmi', 
             lowess=True,         # This tells seaborn to use a LOESS curve

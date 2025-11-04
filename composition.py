@@ -793,10 +793,216 @@ oocyte_censored
     # 56        57 5.000000          1.000000
 
 # %%'
+# %% supplemantory data
+
+# this is the data that Leonie had sent me afterwards, to be added to the existing one.
+    # it contains data before 2022, related to the previous publication.
+
+# Use a raw string (r"...") to correctly handle backslashes in Windows paths
+folder_path = r"F:\OneDrive - Uniklinik RWTH Aachen\DEXA\composition"
+
+# Create the full paths to the files
+# supp : supplemantory 
+supp_file_path = os.path.join(folder_path, "ergänzende Datensets für BMI.xlsx")
+
+# Use the 'sheet_name' parameter to load *only* the 'Data_query' sheet.
+# 'header=0' tells pandas to use the first row (index 0) as the header, 
+# which is the default behavior.
+df_supp = pd.read_excel( supp_file_path, header=0)
+
+# %%'
+
+df_supp.shape
+    # Out[13]: (62, 4)
+
+df_supp[:4]
+    # Out[14]: 
+    #    Unnamed: 0  BCS     lengt     weight
+    # 0           1    2 11.000000 111.000000
+    # 1           2    2 10.500000 100.000000
+    # 2           3    3 11.000000 112.300000
+    # 3           4    3 12.000000 146.400000
+
+
+df_supp.dtypes
+    # Out[17]: 
+    # Unnamed: 0      int64
+    # BCS             int64
+    # lengt         float64
+    # weight        float64
+    # dtype: object
+
+df_supp.columns
+    # Out[18]: Index(['Unnamed: 0', 'BCS', 'lengt', 'weight'], dtype='object')
+
+# %%'
+
+
+# --- Assuming 'df_composition_6' and 'df_supp' are loaded ---
+
+# --- 1. Create a copy to avoid changing your original df_supp ---
+df_supp_cleaned = df_supp.copy()
+
+# --- 2. Rename columns ---
+new_column_names = {
+                    'Unnamed: 0': 'animal_id',
+                    'BCS': 'bcs',
+                    'lengt': 'ncl',
+                    'weight': 'bw'
+}
+
+df_supp_cleaned = df_supp_cleaned.rename( columns=new_column_names )
+
+# --- 3. Add 'supp_' prefix to 'animal_id' ---
+# We convert to string first, just in case the IDs are numbers
+df_supp_cleaned['animal_id'] = 'supp_' + df_supp_cleaned['animal_id'].astype(str)
+
+df_supp_cleaned['animal_id'][:4]
+    # Out[24]: 
+    # 0    supp_1
+    # 1    supp_2
+    # 2    supp_3
+    # 3    supp_4
+    # Name: animal_id, dtype: object
+
+# --- 4. Create the new 'bcs' columns ---
+# (This follows the 'Method 1' we used before, which is robust)
+# a. Convert to nullable integer
+df_supp_cleaned['bcs_Int64'] = df_supp_cleaned['bcs'].astype('Int64')
+# b. Convert that integer to a string
+df_supp_cleaned['bcs_Int64_str'] = df_supp_cleaned['bcs_Int64'].astype(str)
+# c. Replace the <NA> string with 'nan' (if any)
+df_supp_cleaned['bcs_Int64_str'] = df_supp_cleaned['bcs_Int64_str'].replace('<NA>', 'nan')
+
+
+df_supp_cleaned.to_pickle( r'F:\OneDrive - Uniklinik RWTH Aachen\DEXA\composition\df_supp_cleaned.pkl' )
+
 # %%
 
 
+df_supp_cleaned['bcs'].unique()
+    # Out[36]: array([2, 3, 4, 5, 1])
+
+
+df_supp_cleaned['bcs'].value_counts()
+    # Out[37]: 
+    # bcs
+    # 5    24
+    # 4    18
+    # 3    16
+    # 2     3
+    # 1     1
+    # Name: count, dtype: int64
+
 # %%
+
+# --- 5. Save the categorical order from your MAIN dataframe ---
+# This is the answer to your question! We save the order first.
+
+# try:
+#     # Get the existing categories and their order
+#     bcs_category_order = df_composition_6['bcs_Int64_str'].cat.categories
+#     print(f"Saved existing category order: {bcs_category_order}")
+# except AttributeError:
+#     print("Warning: 'bcs_Int64_str' in df_composition_6 is not categorical.")
+#     print("Will set a default sort order ('1', '2', ... 'nan').")
+#     # Manually define the order if it wasn't categorical for some reason
+#     bcs_category_order = sorted(
+#                                 df_composition_6['bcs_Int64_str'].unique(), 
+#                                 key=lambda x: (x.isdigit(), x)
+    )
+
+
+# %%
+    
+# --- 6. Concatenate the dataframes ---
+# This creates df_composition_7
+# ignore_index=True re-calculates the index (0, 1, 2, ...)
+df_composition_7 = pd.concat(
+                                [ df_composition_6, df_supp_cleaned ], 
+                                ignore_index=True
+)
+
+# %% order bcs
+
+
+# When you use pd.concat(), pandas has to merge the two columns.
+    # df_composition_6['bcs_Int64_str'] is a special Categorical type.
+    # df_supp_cleaned['bcs_Int64_str'] is a plain object (string) type.
+    # To merge them, pandas will "break" the Categorical type and create a new, simple object column in df_composition_7. 
+    # All your special ordering will be lost.
+# Hence, you should define the order again :
+
+bcs_Int64_str_order = [ '1', '2', '3', '4', '5', 'nan' ]
+
+# --- 7. Re-apply the categorical order ---
+# When you concatenated, the 'bcs_Int64_str' column lost its order.
+# We now re-apply it to the entire column in the new dataframe.
+df_composition_7['bcs_Int64_str'] = pd.Categorical(
+                                                    df_composition_7['bcs_Int64_str'],
+                                                    categories=bcs_Int64_str_order,
+                                                    ordered=True
+)
+
+
+df_composition_7['bcs_Int64_str'].unique()
+    # Out[29]: 
+    # ['1', '5', '4', '3', '2', 'nan']
+    # Categories (6, object): ['1' < '2' < '3' < '4' < '5' < 'nan']
+
+# %%'
+
+df_composition_7.shape
+    # Out[30]: (163, 25)
+
+
+df_composition_7.dtypes
+    # Out[31]: 
+    # species               object
+    # sex                  float64
+    # animal_id             object
+    # condition             object
+    # day                  float64
+    # repetition           float64
+    # date                  object
+    # bcs                  float64
+    # bw                   float64
+    # ncl                  float64
+    # fatbody              float64
+    # fatbody_censored     float64
+    # oocytes              float64
+    # oocytes_censored     float64
+    # fat_volume_ct        float64
+    # body_volume_ct       float64
+    # fwp_d                float64
+    # fvp_ct               float64
+    # bmi                  float64
+    # owp                  float64
+    # wli                  float64
+    # leakage_average      float64
+    # bcs_str               object
+    # bcs_Int64              Int64
+    # bcs_Int64_str       category
+    # dtype: object
+
+df_composition_7['bcs_Int64_str'].dtype
+    # Out[32]: CategoricalDtype(categories=['1', '2', '3', '4', '5', 'nan'], ordered=True, categories_dtype=object)
+
+# %%'
+
+# body mass index 
+df_composition_7['bmi'] =  df_composition_7['bw'] / ( df_composition_7['ncl'] ** 2 )
+
+# wli : weight-length index.
+df_composition_7['wli'] =  df_composition_7['bw'] / ( df_composition_7['ncl'] ** 3 )
+
+
+# %%'
+
+df_composition_7.to_pickle( r'F:\OneDrive - Uniklinik RWTH Aachen\DEXA\composition\df_composition_7.pkl' )
+
+
+# %%'
 
 
 
